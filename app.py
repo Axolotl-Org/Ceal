@@ -1,4 +1,3 @@
-from re import S
 import subprocess
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -7,11 +6,11 @@ import customtkinter as ctk
 
 import json
 import os
-from pathlib import Path
 import webcfg
 
-LOCAL_CFG = Path(__file__).parent / "custom_cfg.json"
+LOCAL_CFG = "./custom_cfg.json"
 WEB_CFG = webcfg.CLOUD_CONFIG_PATH
+CONFIG_PATH = "./config.json"
 
 # 新增配置窗口类
 class ConfigWindow(ctk.CTkToplevel):
@@ -189,7 +188,7 @@ class ConfigWindow(ctk.CTkToplevel):
 
     def _load_config(self):
         try:
-            if self.custom_config_path.exists():
+            if os.path.isfile(self.custom_config_path):
                 with open(self.custom_config_path, 'r') as f:
                     config = json.load(f)
                     
@@ -213,8 +212,6 @@ class ConfigWindow(ctk.CTkToplevel):
             messagebox.showerror("加载错误", f"加载本地配置失败: {str(e)}")
             tb(e)
 
-# 在类定义前添加常量
-CONFIG_PATH = Path(__file__).parent / "config.json"
 
 class ChromeLauncher(ctk.CTk):
     def __init__(self):
@@ -294,11 +291,13 @@ class ChromeLauncher(ctk.CTk):
     # 新增配置加载方法
     def _load_config(self):
         try:
-            if CONFIG_PATH.exists():
+            if os.path.isfile(CONFIG_PATH):
                 with open(CONFIG_PATH, 'r') as f:
                     config = json.load(f)
                     self.path_entry.insert(0, config.get("chrome_path", ""))
-                    self.url_entry.insert(0, config.get("config_url", webcfg.URL))  # 使用默认值作为fallback
+                    self.url_entry.insert(0, config.get("config_url", webcfg.URL))
+            else:
+                self.url_entry.insert(0, webcfg.URL)
         except Exception as e:
             messagebox.showerror("Config Error", f"读取配置失败: {str(e)}")
     def _open_config(self):
