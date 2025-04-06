@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from traceback import print_exc as tb
 import customtkinter as ctk
+from pprint import pprint
 
 import json
 import os
@@ -11,6 +12,8 @@ import webcfg
 LOCAL_CFG = "./custom_cfg.json"
 WEB_CFG = webcfg.CLOUD_CONFIG_PATH
 CONFIG_PATH = "./config.json"
+
+use_cloud = True
 
 # 新增配置窗口类
 class ConfigWindow(ctk.CTkToplevel):
@@ -79,7 +82,7 @@ class ConfigWindow(ctk.CTkToplevel):
         if current_tab is None:
             current_tab = self.tabview.get()
         
-        if current_tab == self.mapper_tab:
+        if current_tab == "Mapper":
             frame = ctk.CTkFrame(self.mapper_content)  # 修改为使用mapper_content
             frame.pack(fill="x", padx=10, pady=5)
             
@@ -127,14 +130,15 @@ class ConfigWindow(ctk.CTkToplevel):
                 # 加载Mapper数据
                 for src, dests in mapper.items():
                     for dest in dests:
-                        self._add_row(current_tab=self.mapper_tab)
-                        self.mapper_entries[-1][0].insert(0, src)
-                        self.mapper_entries[-1][1].insert(0, dest)
+                        # dest -> src
+                        self._add_row(current_tab="Mapper")
+                        self.mapper_entries[-1][1].insert(0, src)
+                        self.mapper_entries[-1][0].insert(0, dest)
                 
                 # 加载Resolver数据
-                for domain, ips in resolver.items():
-                    for ip in ips:
-                        self._add_row(current_tab=self.resolver_tab)
+                for ip, domains in resolver.items():
+                    for domain in domains:
+                        self._add_row(current_tab="Resolver")
                         self.resolver_entries[-1][0].insert(0, domain)
                         self.resolver_entries[-1][1].insert(0, ip)
         except Exception as e:
@@ -197,14 +201,14 @@ class ConfigWindow(ctk.CTkToplevel):
                 # 加载Mapper数据
                 for dest, srcs in config.get("mapper", {}).items():
                     for src in srcs:
-                        self._add_row()
+                        self._add_row("Mapper")
                         self.mapper_entries[-1][0].insert(0, src)
                         self.mapper_entries[-1][1].insert(0, dest)
                 
                 # 加载Resolver数据
                 for ip, domains in config.get("resolver", {}).items():
                     for domain in domains:
-                        self._add_row()
+                        self._add_row("Resolver")
                         self.resolver_entries[-1][0].insert(0, domain)
                         self.resolver_entries[-1][1].insert(0, ip)
                         
@@ -240,6 +244,11 @@ class ChromeLauncher(ctk.CTk):
         
         self.url_entry.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
 
+        # 是否使用云配置
+        self.cloud_switch = ctk.CTkSwitch(self, text="使用云配置", command=self._toggle_cloud)
+        self.cloud_switch.grid(row=2, column=2, padx=10, pady=10, sticky="w")
+        self.cloud_switch.select() if use_cloud else self.cloud_switch.deselect()
+
         # Launch Button
         self.launch_btn = ctk.CTkButton(self, text="Launch Chrome", command=self._launch_chrome)
         self.launch_btn.grid(row=3, column=1, padx=10, pady=20, sticky="ew")
@@ -265,7 +274,9 @@ class ChromeLauncher(ctk.CTk):
 
         try:
             cmd = [chrome_path]
-            cmd.extend(mapper_str())
+            args = mapper_str()
+            cmd.extend(args)
+            pprint(args) # debug
             # 启动Chrome
             subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
@@ -274,6 +285,11 @@ class ChromeLauncher(ctk.CTk):
             tb(e)
         else:
             self._save_config()  # 新增配置保存
+
+    @staticmethod
+    def _toggle_cloud():
+        global use_cloud
+        use_cloud = not use_cloud
 
     # 新增配置保存方法
     def _save_config(self):
@@ -294,8 +310,11 @@ class ChromeLauncher(ctk.CTk):
             if os.path.isfile(CONFIG_PATH):
                 with open(CONFIG_PATH, 'r') as f:
                     config = json.load(f)
+                    uri = config.get("config_url", webcfg.URL)
+                    webcfg.URL = uri
                     self.path_entry.insert(0, config.get("chrome_path", ""))
-                    self.url_entry.insert(0, config.get("config_url", webcfg.URL))
+                    self.url_entry.insert(0, uri)
+
             else:
                 self.url_entry.insert(0, webcfg.URL)
         except Exception as e:
@@ -309,9 +328,13 @@ def mapper_str():
     """获取映射配置"""
     # 这里可以根据需要返回映射配置
     cfg = {}
-    cfg["mapper"], cfg["resolver"] = webcfg.get_config(LOCAL_CFG)
+    cfg["mapper"], cfg["resolver"] = {}, {}
+    if use_cloud:
+        mapper, resolver = webcfg.get_config_from_web()
+        cfg["mapper"].update(mapper)
+        cfg["resolver"].update(resolver)
     
-    mapper, resolver = webcfg.get_config_from_web()
+    mapper, resolver = webcfg.get_config(LOCAL_CFG)
     # print(mapper, resolver)
     cfg["mapper"].update(mapper)
     cfg["resolver"].update(resolver)
@@ -329,7 +352,7 @@ def mapper_str():
     s1 = ", ".join(arr1)
     s2 = ", ".join(arr2)
 
-    return f'--host-rules="{s1}"', f'--host-resolver-rules="{s2}"'
+    return f'--host-rules={s1}', f'--host-resolver-rules={s2}'
         
         
         

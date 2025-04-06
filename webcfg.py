@@ -66,10 +66,10 @@ def save_config(mapper: dict, resolver: dict, file=CLOUD_CONFIG_PATH):
         print(f"Error saving config: {e}")
         return None
 
-def get_config_from_web() -> tuple:
+def get_config_from_web(uri = None) -> tuple:
     mapper, resolver = get_config()
-    if not mapper and not resolver:
-        mapper, resolver = _get_config_from_web()
+    if (not mapper and not resolver) or uri:
+        mapper, resolver = _get_config_from_web(uri)
         if mapper is None or resolver is None:
             return {}, {}
         save_config(mapper, resolver)
