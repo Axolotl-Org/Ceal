@@ -7,10 +7,10 @@ from pprint import pprint
 
 import json
 import os
-import webcfg
+import get_para
 
-LOCAL_CFG = "./custom_cfg.json"
-WEB_CFG = webcfg.CLOUD_CONFIG_PATH
+CUSTOM_PARA = "./custom_para.json"
+WEB_CFG = get_para.PARA_JSON
 CONFIG_PATH = "./config.json"
 
 use_cloud = True
@@ -24,7 +24,7 @@ class ConfigWindow(ctk.CTkToplevel):
         self.after(100, self.lift)
         self.grab_set()
         
-        self.custom_config_path = LOCAL_CFG
+        self.custom_config_path = CUSTOM_PARA
         self._create_widgets()
         self._load_config()
 
@@ -123,7 +123,7 @@ class ConfigWindow(ctk.CTkToplevel):
 
     def _load_from_web(self):
         try:
-            mapper, resolver = webcfg.get_config_from_web()
+            mapper, resolver = get_para.get_config_from_web()
             if mapper and resolver:
                 self._clear_tables()
                 
@@ -310,13 +310,13 @@ class ChromeLauncher(ctk.CTk):
             if os.path.isfile(CONFIG_PATH):
                 with open(CONFIG_PATH, 'r') as f:
                     config = json.load(f)
-                    uri = config.get("config_url", webcfg.URL)
-                    webcfg.URL = uri
+                    uri = config.get("config_url", get_para.URL)
+                    get_para.URL = uri
                     self.path_entry.insert(0, config.get("chrome_path", ""))
                     self.url_entry.insert(0, uri)
 
             else:
-                self.url_entry.insert(0, webcfg.URL)
+                self.url_entry.insert(0, get_para.URL)
         except Exception as e:
             messagebox.showerror("Config Error", f"读取配置失败: {str(e)}")
     def _open_config(self):
@@ -330,11 +330,11 @@ def mapper_str():
     cfg = {}
     cfg["mapper"], cfg["resolver"] = {}, {}
     if use_cloud:
-        mapper, resolver = webcfg.get_config_from_web()
+        mapper, resolver = get_para.get_config_from_web()
         cfg["mapper"].update(mapper)
         cfg["resolver"].update(resolver)
     
-    mapper, resolver = webcfg.get_config(LOCAL_CFG)
+    mapper, resolver = get_para.get_config(CUSTOM_PARA)
     # print(mapper, resolver)
     cfg["mapper"].update(mapper)
     cfg["resolver"].update(resolver)

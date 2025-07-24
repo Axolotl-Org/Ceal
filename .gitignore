@@ -5,6 +5,7 @@ __pycache__/
 
 #for test uses.
 env1/
+para.json
 
 # C extensions
 *.so
